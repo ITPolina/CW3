@@ -9,7 +9,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 public class Server {
     private ArrayBlockingQueue<Message> messages = new ArrayBlockingQueue<>(15);
-    private /* ArrayList*/ CopyOnWriteArrayList<Connection<Message>> clients = new CopyOnWriteArrayList<>();
+    private CopyOnWriteArrayList<Connection<Message>> clients = new CopyOnWriteArrayList<>();
     private int port;
 
 
@@ -31,14 +31,17 @@ public class Server {
             new SendMessageToAll().start();
             while (true) {
                 clientSocket = serverSocket.accept();
-                Connection<Message> connection = new Connection<>(clientSocket);
-
+                Connection<Message> connection = new Connection<>(clientSocket, client.getClientName() );
+                connection.setClientName(connection.client.getClientName()); // устанавливаем имя прямо при подключении,
+                // а не после получения первого сообщения от клиента
                 clients.add(connection);
                 System.out.println("количество подключенных клиентов: " + clients.size());
                 new GetMessage(connection).start();
 
 
             }
+
+
         } catch (IOException e /*| ClassNotFoundException | InterruptedException e*/) {
             System.out.println("Обработка IOException или ClassNotFoundException");
         } finally {
@@ -58,7 +61,6 @@ public class Server {
         public void run() {
             while (!Thread.currentThread().isInterrupted()) {
                 for (Connection<Message> client : clients) {
-                    //System.out.println("количество подключенных клиентов: " + clients.size());
                     try {
                         Message message = messages.take();
                         if (!client.getClientName().equalsIgnoreCase(message.getSender())) {
@@ -66,7 +68,8 @@ public class Server {
                         }
                     } catch (IOException e) {
                         System.out.println(e.getMessage());
-
+                        removeClient(client);
+                        //clients.remove(client);
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
@@ -87,13 +90,15 @@ public class Server {
         public void run () {
             while (!Thread.currentThread().isInterrupted()){
                 try {
-                    Message message = clientConnection.readMessage();
-                    clientConnection.setClientName(message.getSender());
-                    messages.put(message);
+                    //Message message = clientConnection.readMessage();
+                    //clientConnection.setClientName(message.getSender());
+                    //messages.put(message);
+                    messages.put(clientConnection.readMessage());
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 } catch (IOException e) {
-                    throw new RuntimeException(e);
+                    removeClient(clientConnection);
+                    //throw new RuntimeException(e);
                 } catch (ClassNotFoundException e) {
                     throw new RuntimeException(e);
                 }
