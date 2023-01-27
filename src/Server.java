@@ -31,10 +31,13 @@ public class Server {
             new SendMessageToAll().start();
             while (true) {
                 clientSocket = serverSocket.accept();
-                Connection<Message> connection = new Connection<>(clientSocket, client.getClientName() );
-                connection.setClientName(connection.client.getClientName()); // устанавливаем имя прямо при подключении,
+                Connection<Message> connection = new Connection<>(clientSocket);
+                connection.setClientName(connection.readMessage().getSender());
+
+                // connection.setClientName(connection.client.getClientName()); // устанавливаем имя прямо при подключении,
                 // а не после получения первого сообщения от клиента
                 clients.add(connection);
+
                 System.out.println("количество подключенных клиентов: " + clients.size());
                 new GetMessage(connection).start();
 
@@ -42,7 +45,7 @@ public class Server {
             }
 
 
-        } catch (IOException e /*| ClassNotFoundException | InterruptedException e*/) {
+        } catch (IOException | ClassNotFoundException e /*| ClassNotFoundException | InterruptedException e*/) {
             System.out.println("Обработка IOException или ClassNotFoundException");
         } finally {
             try {
@@ -60,9 +63,15 @@ public class Server {
         @Override
         public void run() {
             while (!Thread.currentThread().isInterrupted()) {
+                Message message = null;
+                try {
+                    message = messages.take();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
                 for (Connection<Message> client : clients) {
                     try {
-                        Message message = messages.take();
+
                         if (!client.getClientName().equalsIgnoreCase(message.getSender())) {
                             client.sendMessage(message);
                         }
@@ -70,8 +79,6 @@ public class Server {
                         System.out.println(e.getMessage());
                         removeClient(client);
                         //clients.remove(client);
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
                     }
 
                 }

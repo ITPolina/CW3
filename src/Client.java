@@ -19,7 +19,8 @@ public class Client {
     public Client(String ip, int port) {
         Scanner scanner = new Scanner(System.in);
         System.out.println("Введите имя");
-        this.clientName = scanner.nextLine();
+        String name = scanner.nextLine();
+        this.clientName = name;
         this.ip = ip;
         this.port = port;
     }
@@ -33,7 +34,9 @@ public class Client {
 
         Socket clientSocket = new Socket(ip, port);
         connection = new Connection<>(clientSocket, clientName);
-
+        Message messageTest = new Message(clientName," test"); //отправляем техническое сообщение автоматически при создании соединения,
+        // чтобы серверу передать имя клиента. Это сообщение не добавляем в очередь, рассылать его не нужно
+        connection.sendMessage(messageTest);
         new SendMessage().start();
         new ReadMessage().start();
     }
@@ -83,6 +86,7 @@ public class Client {
                 System.out.println("Возникли проблемы с чтением config.properties ");
             }
             Client client = new Client(properties.getProperty("ip"), Integer.parseInt(properties.getProperty("port")));
+
             try {
                 client.run();
 
